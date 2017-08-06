@@ -29,7 +29,6 @@
 
     <!-- Allows to queue downloads without a notification shown while the download runs. -->
     <permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
-        android:permissionGroup="android.permission-group.NETWORK"
         android:label="@string/permlab_downloadWithoutNotification"
         android:description="@string/permdesc_downloadWithoutNotification"
         android:protectionLevel="normal"/>
