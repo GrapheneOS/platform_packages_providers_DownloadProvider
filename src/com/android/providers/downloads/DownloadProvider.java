@@ -87,6 +87,7 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Allows application to interact with the download manager.
@@ -723,8 +724,8 @@ public final class DownloadProvider extends ContentProvider {
 
         ContentValues filteredValues = new ContentValues();
 
-        boolean isPublicApi =
-                values.getAsBoolean(Downloads.Impl.COLUMN_IS_PUBLIC_API) == Boolean.TRUE;
+        boolean isPublicApi = Objects.equals(
+            values.getAsBoolean(Downloads.Impl.COLUMN_IS_PUBLIC_API), Boolean.TRUE);
 
         // validate the destination column
         Integer dest = values.getAsInteger(Downloads.Impl.COLUMN_DESTINATION);
