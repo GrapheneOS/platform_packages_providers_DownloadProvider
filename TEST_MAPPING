@@ -9,10 +9,10 @@
             ]
         },
         {
-            "name": "CtsAppTestCases",
+            "name": "CtsDownloadManagerTestCases",
             "options": [
                 {
-                    "include-filter": "android.app.cts.DownloadManagerTest"
+                    "include-filter": "android.app.cts.downloadmanager.DownloadManagerTest"
                 }
             ]
         },
