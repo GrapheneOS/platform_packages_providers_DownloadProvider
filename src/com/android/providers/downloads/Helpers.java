@@ -46,6 +46,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Environment;
 import android.os.FileUtils;
 import android.os.Handler;
@@ -64,10 +65,10 @@ import android.webkit.MimeTypeMap;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
+import com.android.providers.downloads.flags.Flags;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.System;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
@@ -177,8 +178,14 @@ public class Helpers {
         // When this download will show a notification, run with a higher
         // bias, since it's effectively a foreground service
         if (info.isVisible()) {
-            builder.setBias(JobInfo.BIAS_FOREGROUND_SERVICE);
-            builder.setFlags(JobInfo.FLAG_WILL_BE_FOREGROUND);
+            if (Flags.setVisibleDownloadsAsUidt()
+                    && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    && canCallerRunUserInitiatedJobs(context, info)) {
+                builder.setUserInitiated(true);
+            } else {
+                builder.setBias(JobInfo.BIAS_FOREGROUND_SERVICE);
+                builder.setFlags(JobInfo.FLAG_WILL_BE_FOREGROUND);
+            }
         }
 
         // We might have a backoff constraint due to errors
@@ -228,6 +235,33 @@ public class Helpers {
         scheduler.scheduleAsPackage(builder.build(), packageName, UserHandle.myUserId(), TAG);
         return true;
     }
+
+    /**
+     * Checks if the app that originally enqueued this download has been granted permission
+     * to run user-initiated jobs.
+     *
+     * <p>This is determined by checking the {@link AppOpsManager#OP_RUN_USER_INITIATED_JOBS}
+     * app-op for the original calling UID and package name stored in the {@link DownloadInfo}.</p>
+     *
+     * @param context The context used to retrieve the {@link AppOpsManager}.
+     * @param info    The {@link DownloadInfo} containing the identity of the original caller.
+     * @return {@code true} if the calling app has the permission, {@code false} otherwise.
+     */
+    private static boolean canCallerRunUserInitiatedJobs(Context context, DownloadInfo info) {
+        // Get the AppOpsManager to check the calling app's permissions.
+        final AppOpsManager appOpsManager = context.getSystemService(AppOpsManager.class);
+        if (appOpsManager == null) {
+            Log.w(TAG, "Could not get AppOpsManager; assuming no permission.");
+            return false;
+        }
+
+        // Check if the original calling app has the permission to run UIDT jobs.
+        final int mode = appOpsManager.checkOpNoThrow(
+                AppOpsManager.OP_RUN_USER_INITIATED_JOBS, info.mUid, info.mPackage);
+
+        return mode == AppOpsManager.MODE_ALLOWED;
+    }
+
 
     /*
      * Parse the Content-Disposition HTTP Header. The format of the header
