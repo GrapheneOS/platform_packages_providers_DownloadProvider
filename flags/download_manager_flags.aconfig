@@ -10,7 +10,7 @@ flag {
 
 flag {
   name: "set_visible_downloads_as_uidt"
-  namespace: "storage"
+  namespace: "mediaprovider"
   description: "Set all visible download jobs as user initiated data transfer jobs."
   bug: "445813243"
 }
