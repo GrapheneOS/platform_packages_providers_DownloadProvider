@@ -20,19 +20,13 @@ import android.app.DownloadManager;
 import android.app.job.JobParameters;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
-import android.net.NetworkInfo;
 import android.os.Bundle;
-import android.security.NetworkSecurityPolicy;
 import android.security.net.config.ApplicationConfig;
-
-import com.android.internal.util.ArrayUtils;
+import android.security.net.config.ConfigNetworkSecurityPolicy;
 
 import java.security.GeneralSecurityException;
 
@@ -94,10 +88,14 @@ class RealSystemFacade implements SystemFacade {
             throws GeneralSecurityException {
         ApplicationConfig appConfig;
         try {
-            appConfig = NetworkSecurityPolicy.getApplicationConfigForPackage(context, packageName);
+            appConfig = ApplicationConfig.createApplicationConfigForPackage(context, packageName);
         } catch (NameNotFoundException e) {
             // Unknown package -- fallback to the default SSLContext
             return SSLContext.getDefault();
+        }
+        if (com.android.org.conscrypt.net.flags.Flags.certificateTransparencyDefaultEnabled()) {
+            libcore.net.NetworkSecurityPolicy.setInstance(
+                    new ConfigNetworkSecurityPolicy(appConfig));
         }
         SSLContext ctx = SSLContext.getInstance("TLS");
         ctx.init(null, new TrustManager[]{appConfig.getTrustManager()}, null);
@@ -111,7 +109,7 @@ class RealSystemFacade implements SystemFacade {
     public boolean isCleartextTrafficPermitted(String packageName, String host) {
         ApplicationConfig appConfig;
         try {
-            appConfig = NetworkSecurityPolicy.getApplicationConfigForPackage(mContext, packageName);
+            appConfig = ApplicationConfig.createApplicationConfigForPackage(mContext, packageName);
         } catch (NameNotFoundException e) {
             // Unknown package -- fail for safety
             return false;
@@ -128,7 +126,7 @@ class RealSystemFacade implements SystemFacade {
     @Override
     public boolean hasPerDomainConfig(String packageName) {
         try {
-            return NetworkSecurityPolicy.getApplicationConfigForPackage(mContext,
+            return ApplicationConfig.createApplicationConfigForPackage(mContext,
                     packageName).hasPerDomainConfigs();
         } catch (NameNotFoundException e) {
             // Unknown package -- fail for safety

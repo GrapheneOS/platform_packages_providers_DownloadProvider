@@ -36,6 +36,7 @@ import android.database.MatrixCursor.RowBuilder;
 import android.media.MediaFile;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Environment;
@@ -47,6 +48,7 @@ import android.provider.DocumentsContract.Document;
 import android.provider.DocumentsContract.Path;
 import android.provider.DocumentsContract.Root;
 import android.provider.Downloads;
+import android.provider.Flags;
 import android.provider.MediaStore;
 import android.provider.MediaStore.DownloadColumns;
 import android.text.TextUtils;
@@ -584,6 +586,13 @@ public class DownloadStorageProvider extends FileSystemProvider {
         return DocumentsContract.buildChildDocumentsUri(AUTHORITY, docId);
     }
 
+    @Override
+    protected boolean isTrashSupported(@NonNull File document) {
+        // Called by FileSystemProvider when the document is a RawDocument.
+        // Trash is enabled by default for all documents within the Downloads root.
+        return isDocumentTrashApiEnabled();
+    }
+
     private static boolean isMediaMimeType(String mimeType) {
         return MediaFile.isImageMimeType(mimeType) || MediaFile.isVideoMimeType(mimeType)
                 || MediaFile.isAudioMimeType(mimeType) || MediaFile.isDocumentMimeType(mimeType);
@@ -929,6 +938,8 @@ public class DownloadStorageProvider extends FileSystemProvider {
                 mediaCursor.getColumnIndex(DownloadColumns.DATE_MODIFIED)) * 1000;
         final boolean isPending = mediaCursor.getInt(
                 mediaCursor.getColumnIndex(DownloadColumns.IS_PENDING)) == 1;
+        final boolean isTrashed = mediaCursor.getInt(
+                mediaCursor.getColumnIndex(DownloadColumns.IS_TRASHED)) == 1;
 
         int extraFlags = isPending ? Document.FLAG_PARTIAL : 0;
         if (Document.MIME_TYPE_DIR.equals(mimeType)) {
@@ -936,6 +947,14 @@ public class DownloadStorageProvider extends FileSystemProvider {
         }
         if (!isPending) {
             extraFlags |= Document.FLAG_SUPPORTS_RENAME;
+        }
+
+        // When the documents trash API is enabled, set the appropriate capability flag.
+        // Trashed documents should support RESTORE, while all other documents support TRASH.
+        if (isDocumentTrashApiEnabled()) {
+            extraFlags |= (isTrashed)
+                    ? Document.FLAG_SUPPORTS_RESTORE
+                    : Document.FLAG_SUPPORTS_TRASH;
         }
 
         includeDownload(result, docId, displayName, null /* description */, size, mimeType,
@@ -1080,6 +1099,15 @@ public class DownloadStorageProvider extends FileSystemProvider {
         }
 
         return new Pair<>(selection.toString(), selectionArgs.toArray(new String[0]));
+    }
+
+
+    /**
+     * @return {@code true} if the Documents Trash API is enabled, {@code false} otherwise.
+     */
+    private boolean isDocumentTrashApiEnabled() {
+        return Build.VERSION.SDK_INT > Build.VERSION_CODES.BAKLAVA
+                && Flags.enableDocumentsTrashApi();
     }
 
     /**

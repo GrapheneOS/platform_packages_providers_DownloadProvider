@@ -43,7 +43,14 @@ android_app {
         "com.android.providers.downloads.flags-aconfig-java",
     ],
 
-    libs: ["framework-connectivity.stubs.module_lib"],
+    libs: select(release_flag("RELEASE_CONSCRYPT_NSC"), {
+        true: [
+            "framework-conscrypt-nsc.stubs",
+        ],
+        default: [
+            "framework-connectivity.stubs.module_lib",
+        ],
+    }),
 
     jacoco: {
         include_filter: ["com.android.providers.downloads.*"],

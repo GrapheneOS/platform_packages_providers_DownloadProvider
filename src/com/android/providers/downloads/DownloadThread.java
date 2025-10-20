@@ -118,6 +118,8 @@ public class DownloadThread extends Thread {
 
     private static final int DEFAULT_TIMEOUT = (int) (20 * SECOND_IN_MILLIS);
 
+    private static final Object sLock = new Object();
+
     private final Context mContext;
     private final SystemFacade mSystemFacade;
     private final DownloadNotifier mNotifier;
@@ -414,8 +416,20 @@ public class DownloadThread extends Thread {
             throw new StopRequestException(STATUS_BAD_REQUEST, e);
         }
 
-        boolean cleartextTrafficPermitted
-                = mSystemFacade.isCleartextTrafficPermitted(mInfo.mPackage, url.getHost());
+        if (com.android.org.conscrypt.net.flags.Flags.certificateTransparencyDefaultEnabled()) {
+            // The static lock is necessary to prevent multiple apps downloading in parallel from
+            // setting conflicting defaults NetworkSecurityPolicy.
+            synchronized (sLock) {
+                executeDownload(url, resuming);
+            }
+        } else {
+            executeDownload(url, resuming);
+        }
+    }
+
+    private void executeDownload(URL url, boolean resuming) throws StopRequestException {
+        boolean cleartextTrafficPermitted =
+                mSystemFacade.isCleartextTrafficPermitted(mInfo.mPackage, url.getHost());
         SSLContext appContext;
         try {
             appContext = mSystemFacade.getSSLContextForPackage(mContext, mInfo.mPackage);
@@ -423,6 +437,7 @@ public class DownloadThread extends Thread {
             // This should never happen.
             throw new StopRequestException(STATUS_UNKNOWN_ERROR, "Unable to create SSLContext.");
         }
+
         int redirectionCount = 0;
         while (redirectionCount++ < Constants.MAX_REDIRECTS) {
             // Enforce the cleartext traffic opt-out for the UID. This cannot be enforced earlier
