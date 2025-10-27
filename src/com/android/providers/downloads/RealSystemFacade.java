@@ -26,7 +26,8 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.security.net.config.ApplicationConfig;
-import android.security.net.config.ConfigNetworkSecurityPolicy;
+
+import libcore.net.NetworkSecurityPolicy;
 
 import java.security.GeneralSecurityException;
 
@@ -88,14 +89,13 @@ class RealSystemFacade implements SystemFacade {
             throws GeneralSecurityException {
         ApplicationConfig appConfig;
         try {
-            appConfig = ApplicationConfig.createApplicationConfigForPackage(context, packageName);
+            appConfig = ApplicationConfig.createInstanceForPackage(context, packageName);
         } catch (NameNotFoundException e) {
             // Unknown package -- fallback to the default SSLContext
             return SSLContext.getDefault();
         }
         if (com.android.org.conscrypt.net.flags.Flags.certificateTransparencyDefaultEnabled()) {
-            libcore.net.NetworkSecurityPolicy.setInstance(
-                    new ConfigNetworkSecurityPolicy(appConfig));
+            NetworkSecurityPolicy.setInstance(appConfig.createNetworkSecurityPolicy());
         }
         SSLContext ctx = SSLContext.getInstance("TLS");
         ctx.init(null, new TrustManager[]{appConfig.getTrustManager()}, null);
@@ -109,7 +109,7 @@ class RealSystemFacade implements SystemFacade {
     public boolean isCleartextTrafficPermitted(String packageName, String host) {
         ApplicationConfig appConfig;
         try {
-            appConfig = ApplicationConfig.createApplicationConfigForPackage(mContext, packageName);
+            appConfig = ApplicationConfig.createInstanceForPackage(mContext, packageName);
         } catch (NameNotFoundException e) {
             // Unknown package -- fail for safety
             return false;
@@ -126,8 +126,8 @@ class RealSystemFacade implements SystemFacade {
     @Override
     public boolean hasPerDomainConfig(String packageName) {
         try {
-            return ApplicationConfig.createApplicationConfigForPackage(mContext,
-                    packageName).hasPerDomainConfigs();
+            return ApplicationConfig.createInstanceForPackage(mContext, packageName)
+                    .hasPerDomainConfigs();
         } catch (NameNotFoundException e) {
             // Unknown package -- fail for safety
             return true;
