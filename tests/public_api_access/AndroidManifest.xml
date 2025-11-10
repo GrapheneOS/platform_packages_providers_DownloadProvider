@@ -23,6 +23,7 @@
     </application>
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS"/>
 
     <!--
     We intentionally target our own package to ensure this runs in a separate process under a
