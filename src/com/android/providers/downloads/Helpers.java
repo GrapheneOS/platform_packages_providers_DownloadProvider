@@ -34,6 +34,7 @@ import static com.android.providers.downloads.Constants.TAG;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.app.AppOpsManager;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
@@ -240,15 +241,22 @@ public class Helpers {
      * Checks if the app that originally enqueued this download has been granted permission
      * to run user-initiated jobs.
      *
-     * <p>This is determined by checking the {@link AppOpsManager#OP_RUN_USER_INITIATED_JOBS}
-     * app-op for the original calling UID and package name stored in the {@link DownloadInfo}.</p>
+     * <p>This is determined by checking both the manifest and the
+     * {@link AppOpsManager#OP_RUN_USER_INITIATED_JOBS} app-op for the original calling UID
+     * and package name stored in the {@link DownloadInfo}.</p>
      *
      * @param context The context used to retrieve the {@link AppOpsManager}.
      * @param info    The {@link DownloadInfo} containing the identity of the original caller.
      * @return {@code true} if the calling app has the permission, {@code false} otherwise.
      */
+    @RequiresPermission(android.Manifest.permission.RUN_USER_INITIATED_JOBS)
     private static boolean canCallerRunUserInitiatedJobs(Context context, DownloadInfo info) {
-        // Get the AppOpsManager to check the calling app's permissions.
+        // Static manifest permission check to avoid security exception
+        if (context.checkPermission(android.Manifest.permission.RUN_USER_INITIATED_JOBS, -1,
+                info.mUid) != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+        // Get the AppOpsManager to check the calling app's runtime permissions.
         final AppOpsManager appOpsManager = context.getSystemService(AppOpsManager.class);
         if (appOpsManager == null) {
             Log.w(TAG, "Could not get AppOpsManager; assuming no permission.");
