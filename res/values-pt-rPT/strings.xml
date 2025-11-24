@@ -36,7 +36,7 @@
     <string name="notification_need_wifi_for_size" msgid="4743443900432303646">"Tam. transf. exige Wi-Fi"</string>
     <string name="notification_paused_in_background" msgid="6393408819031041778">"Interrompida em 2º plano"</string>
     <string name="wifi_required_title" msgid="7266700488421122218">"Transf. demasiado grande para a rede do operador"</string>
-    <string name="wifi_required_body" msgid="4005023496578941958">"Deve utilizar uma rede Wi-Fi para concluir esta transferência de <xliff:g id="SIZE">%1$s </xliff:g>. \n\nToque em <xliff:g id="QUEUE_TEXT">%2$s </xliff:g> para iniciar a transferência da próxima vez que estiver ligado a uma rede Wi-Fi."</string>
+    <string name="wifi_required_body" msgid="4005023496578941958">"Deve usar uma rede Wi-Fi para concluir esta transferência de <xliff:g id="SIZE">%1$s </xliff:g>. \n\nToque em <xliff:g id="QUEUE_TEXT">%2$s </xliff:g> para iniciar a transferência da próxima vez que tiver ligação a uma rede Wi-Fi."</string>
     <string name="wifi_recommended_title" msgid="6488158053932133804">"Colocar em fila para transferir mais tarde?"</string>
     <string name="wifi_recommended_body" msgid="8710820743211704403">"Iniciar esta transferência de <xliff:g id="SIZE">%1$s </xliff:g> poderá reduzir a duração da bateria e/ou resultar numa utilização excessiva da ligação móvel de dados, o que pode levar a uma cobrança por parte do operador móvel, dependendo do seu plano de dados.\n\n Toque em <xliff:g id="QUEUE_TEXT">%2$s</xliff:g> para iniciar a transferência da próxima vez que estiver ligado a uma rede Wi-Fi."</string>
     <string name="button_queue_for_wifi" msgid="6650185573566994738">"Fila"</string>
