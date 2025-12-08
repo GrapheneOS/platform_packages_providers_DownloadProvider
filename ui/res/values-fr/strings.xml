@@ -23,7 +23,7 @@
     <string name="missing_title" msgid="3827247802608803753">"&lt;Inconnu&gt;"</string>
     <string name="button_sort_by_size" msgid="7952187121189086395">"Trier par taille"</string>
     <string name="button_sort_by_date" msgid="2064919145709585942">"Trier par date"</string>
-    <string name="download_queued" msgid="4128038702528588781">"Ajouté à la file d\'attente"</string>
+    <string name="download_queued" msgid="4128038702528588781">"Placé en file d\'attente"</string>
     <string name="download_running" msgid="2046492059586594352">"En cours…"</string>
     <string name="download_success" msgid="3895973294927323747">"Terminé"</string>
     <string name="download_error" msgid="6652902885480887230">"Échec"</string>
