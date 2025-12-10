@@ -31,7 +31,7 @@
     <string name="dialog_failed_body" msgid="4538779125597383173">"શું તમે ફાઇલને પછીથી ડાઉનલોડ કરવા ફરી પ્રયાસ કરવા માંગો છો અથવા તેને કતારમાંથી કાઢી નાખવા માંગો છો?"</string>
     <string name="dialog_title_queued_body" msgid="7481231558376227012">"ફાઇલ કતારમાં છે"</string>
     <string name="dialog_queued_body" msgid="2374398802707010234">"ભાવિ ડાઉનલોડ માટે આ ફાઇલ કતારબદ્ધ છે તેથી તે હજી સુધી ઉપલબ્ધ નથી."</string>
-    <string name="dialog_file_missing_body" msgid="7896653198405160564">"ડાઉનલોડ કરેલ ફાઇલ શોધી શકાતી નથી."</string>
+    <string name="dialog_file_missing_body" msgid="7896653198405160564">"ડાઉનલોડ કરેલી ફાઇલ શોધી શકાતી નથી."</string>
     <string name="dialog_insufficient_space_on_external" msgid="1847671628253287114">"ડાઉનલોડ સમાપ્ત કરી શકાતું નથી. બાહ્ય સંગ્રહ પર પર્યાપ્ત સ્થાન નથી."</string>
     <string name="dialog_insufficient_space_on_cache" msgid="703074452633529558">"ડાઉનલોડ સમાપ્ત કરી શકાતું નથી. આંતરિક ડાઉનલોડ સંગ્રહ પર પર્યાપ્ત સ્થાન નથી."</string>
     <string name="dialog_cannot_resume" msgid="3101433441301206866">"ડાઉનલોડ અવરોધાયું હતું અને ફરી શરૂ કરી શકાતું નથી."</string>
