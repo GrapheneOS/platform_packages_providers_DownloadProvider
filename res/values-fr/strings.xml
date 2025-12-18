@@ -38,7 +38,7 @@
     <string name="wifi_required_title" msgid="7266700488421122218">"Téléchargement trop volumineux pour l\'opérateur"</string>
     <string name="wifi_required_body" msgid="4005023496578941958">"Vous devez utiliser le Wi-Fi pour finaliser ce téléchargement de <xliff:g id="SIZE">%1$s </xliff:g>. \n\nAppuyez sur <xliff:g id="QUEUE_TEXT">%2$s </xliff:g> pour le lancer lors de votre prochaine connexion à un réseau Wi-Fi."</string>
     <string name="wifi_recommended_title" msgid="6488158053932133804">"Ajouter à la file d\'attente des téléchargements ?"</string>
-    <string name="wifi_recommended_body" msgid="8710820743211704403">"Ce téléchargement (<xliff:g id="SIZE">%1$s </xliff:g>) risque de décharger votre batterie et/ou d\'entraîner une consommation excessive de votre connexion Internet mobile. Des frais supplémentaires peuvent être facturés par votre opérateur en fonction de votre forfait.\n\nAppuyez sur <xliff:g id="QUEUE_TEXT">%2$s</xliff:g> pour le lancer lors de votre prochaine connexion au Wi-Fi."</string>
+    <string name="wifi_recommended_body" msgid="8710820743211704403">"Ce téléchargement (<xliff:g id="SIZE">%1$s </xliff:g>) risque de décharger votre batterie et/ou d\'entraîner une consommation excessive de votre connexion de données mobiles. Des frais peuvent être facturés par votre opérateur en fonction de votre forfait.\n\nAppuyez sur <xliff:g id="QUEUE_TEXT">%2$s</xliff:g> pour lancer le téléchargement lors de votre prochaine connexion au réseau Wi-Fi."</string>
     <string name="button_queue_for_wifi" msgid="6650185573566994738">"File d\'attente"</string>
     <string name="button_cancel_download" msgid="4135046775536601831">"Annuler"</string>
     <string name="button_start_now" msgid="3817100969365441730">"Commencer"</string>
