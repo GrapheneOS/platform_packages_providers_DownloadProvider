@@ -36,7 +36,6 @@ import android.database.MatrixCursor.RowBuilder;
 import android.media.MediaFile;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Environment;
@@ -590,7 +589,7 @@ public class DownloadStorageProvider extends FileSystemProvider {
     protected boolean isTrashSupported(@NonNull File document) {
         // Called by FileSystemProvider when the document is a RawDocument.
         // Trash is enabled by default for all documents within the Downloads root.
-        return isDocumentTrashApiEnabled();
+        return Flags.enableDocumentsTrashApi();
     }
 
     private static boolean isMediaMimeType(String mimeType) {
@@ -951,7 +950,7 @@ public class DownloadStorageProvider extends FileSystemProvider {
 
         // When the documents trash API is enabled, set the appropriate capability flag.
         // Trashed documents should support RESTORE, while all other documents support TRASH.
-        if (isDocumentTrashApiEnabled()) {
+        if (Flags.enableDocumentsTrashApi()) {
             extraFlags |= (isTrashed)
                     ? Document.FLAG_SUPPORTS_RESTORE
                     : Document.FLAG_SUPPORTS_TRASH;
@@ -1099,15 +1098,6 @@ public class DownloadStorageProvider extends FileSystemProvider {
         }
 
         return new Pair<>(selection.toString(), selectionArgs.toArray(new String[0]));
-    }
-
-
-    /**
-     * @return {@code true} if the Documents Trash API is enabled, {@code false} otherwise.
-     */
-    private boolean isDocumentTrashApiEnabled() {
-        return Build.VERSION.SDK_INT > Build.VERSION_CODES.BAKLAVA
-                && Flags.enableDocumentsTrashApi();
     }
 
     /**
