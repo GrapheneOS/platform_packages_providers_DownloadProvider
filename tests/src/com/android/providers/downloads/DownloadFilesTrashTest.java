@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -72,10 +71,6 @@ public class DownloadFilesTrashTest {
 
     @Before
     public void setUp() throws Exception {
-        // Skip test if the platform SDK is not newer than Android Baklava (SDK 36).
-        // The Trash feature under test relies on DocumentsContract APIs introduced in the
-        // Android release after Baklava (SDK 36).
-        assumeTrue(Build.VERSION.SDK_INT > Build.VERSION_CODES.BAKLAVA);
         mContext = getContext();
         mResolver = mContext.getContentResolver();
 
