@@ -662,6 +662,10 @@ public class DownloadStorageProvider extends FileSystemProvider {
                     return;
                 }
                 extraFlags = Document.FLAG_SUPPORTS_RENAME;  // only successful is non-partial
+                // Only successful items can be trashed.
+                if (Flags.enableDocumentsTrashApi()) {
+                    extraFlags |= Document.FLAG_SUPPORTS_TRASH;
+                }
                 break;
             case DownloadManager.STATUS_PAUSED:
                 summary = getContext().getString(R.string.download_queued);
