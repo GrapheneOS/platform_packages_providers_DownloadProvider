@@ -32,6 +32,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 import android.provider.MediaStore;
@@ -44,6 +46,7 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -59,6 +62,8 @@ import java.util.Objects;
 @RequiresFlagsEnabled(FLAG_ENABLE_DOCUMENTS_TRASH_API)
 public class DownloadFilesTrashTest {
 
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
     private static final String TAG = "DownloadFilesTrashTest";
 
     private File mTestDirectory;
