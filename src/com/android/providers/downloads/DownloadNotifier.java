@@ -25,11 +25,14 @@ import static android.provider.Downloads.Impl.STATUS_RUNNING;
 import static com.android.providers.downloads.Constants.TAG;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.DownloadManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.job.JobParameters;
+import android.app.job.JobService;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
@@ -47,6 +50,7 @@ import android.util.Log;
 import android.util.LongSparseLongArray;
 
 import com.android.internal.util.ArrayUtils;
+import com.android.providers.downloads.flags.Flags;
 
 import java.text.NumberFormat;
 
@@ -169,7 +173,15 @@ public class DownloadNotifier {
         final int DESCRIPTION = 8;
     }
 
+    /**
+     * Centrally handle all notification updates.
+     * If job parameters are provided, it will satisfy the UIJ 'required notification' contract.
+     */
     public void update() {
+        update(/* jobService */ null, /* params */ null);
+    }
+
+    public void update(@Nullable JobService jobService, @Nullable JobParameters params) {
         try (Cursor cursor = mContext.getContentResolver().query(
                 Downloads.Impl.ALL_DOWNLOADS_CONTENT_URI, UpdateQuery.PROJECTION,
                 Downloads.Impl.COLUMN_DELETED + " == '0'", null, null)) {
@@ -178,12 +190,18 @@ public class DownloadNotifier {
                 return;
             }
             synchronized (mActiveNotifs) {
-                updateWithLocked(cursor);
+                updateWithLocked(cursor, jobService, params);
             }
         }
     }
 
-    private void updateWithLocked(@NonNull Cursor cursor) {
+    /**
+     * Update logic centered in DownloadNotifier.
+     * @param jobService If provided, used to satisfy User-Initiated Job requirements.
+     * @param params If provided, used to identify the active job triggering the update.
+     */
+    private void updateWithLocked(@NonNull Cursor cursor, @Nullable JobService jobService,
+                                  @Nullable JobParameters params) {
         final Resources res = mContext.getResources();
 
         // Cluster downloads together
@@ -233,11 +251,10 @@ public class DownloadNotifier {
             }
             builder.setWhen(firstShown);
             builder.setOnlyAlertOnce(true);
+            final long[] downloadIds = getDownloadIds(cursor, cluster);
 
             // Build action intents
             if (type == TYPE_ACTIVE || type == TYPE_WAITING) {
-                final long[] downloadIds = getDownloadIds(cursor, cluster);
-
                 // build a synthetic uri for intent identification purposes
                 final Uri uri = new Uri.Builder().scheme("active-dl").appendPath(tag).build();
                 final Intent intent = new Intent(Constants.ACTION_LIST,
@@ -400,7 +417,29 @@ public class DownloadNotifier {
                 notif = inboxStyle.build();
             }
 
-            mNotifManager.notify(tag, 0, notif);
+            if (Flags.ensureUijNotification()) {
+                boolean clusterContainsActiveJob = false;
+                if (params != null && jobService != null) {
+                    for (long id : downloadIds) {
+                        if (id == params.getJobId()) {
+                            clusterContainsActiveJob = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (clusterContainsActiveJob && params.isUserInitiatedJob()) {
+                    // The policy ensures the notification is removed when the job finishes.
+                    jobService.setNotification(params, tag.hashCode(), notif,
+                            JobService.JOB_END_NOTIFICATION_POLICY_REMOVE);
+                } else {
+                    // Standard notification post for non-UIDT jobs or recurring updates.
+                    mNotifManager.notify(tag.hashCode(), notif);
+                }
+            } else {
+                mNotifManager.notify(tag, 0, notif);
+            }
+
         }
 
         // Remove stale tags that weren't renewed
@@ -409,7 +448,12 @@ public class DownloadNotifier {
             if (clustered.containsKey(tag)) {
                 i++;
             } else {
-                mNotifManager.cancel(tag, 0);
+                if (Flags.ensureUijNotification()) {
+                    mNotifManager.cancel(tag.hashCode());
+                } else {
+                    mNotifManager.cancel(tag.hashCode());
+                }
+
                 mActiveNotifs.removeAt(i);
             }
         }

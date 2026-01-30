@@ -22,9 +22,13 @@ import static com.android.providers.downloads.Constants.TAG;
 
 import android.app.job.JobParameters;
 import android.app.job.JobService;
+import android.content.ContentValues;
 import android.database.ContentObserver;
+import android.provider.Downloads;
 import android.util.Log;
 import android.util.SparseArray;
+
+import com.android.providers.downloads.flags.Flags;
 
 /**
  * Service that hosts download jobs. Each active download job is handled as a
@@ -62,6 +66,18 @@ public class DownloadJobService extends JobService {
         if (info == null) {
             Log.w(TAG, "Odd, no details found for download " + id);
             return false;
+        }
+
+        if (Flags.ensureUijNotification() && params.isUserInitiatedJob()) {
+            // For User-Initiated Jobs, we must satisfy the "visual contract" immediately.
+            // We update the status to RUNNING now so the Notifier identifies this download
+            // as active during the immediate update() call below.
+            final ContentValues values = new ContentValues();
+            values.put(Downloads.Impl.COLUMN_STATUS, Downloads.Impl.STATUS_RUNNING);
+            getContentResolver().update(info.getAllDownloadsUri(), values, null, null);
+
+            // This call performs the mandatory setNotification() handshake with JobScheduler.
+            Helpers.getDownloadNotifier(this).update(this, params);
         }
 
         final DownloadThread thread;

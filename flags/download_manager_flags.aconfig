@@ -14,3 +14,10 @@ flag {
   description: "Set all visible download jobs as user initiated data transfer jobs."
   bug: "445813243"
 }
+
+flag {
+    name: "ensure_uij_notification"
+    namespace: "mediaprovider"
+    description: "Ensure that User-Initiated Jobs are associated with a notification."
+    bug: "445833780"
+}
