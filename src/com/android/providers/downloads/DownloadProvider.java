@@ -261,6 +261,9 @@ public final class DownloadProvider extends ContentProvider {
     private StorageManager mStorageManager;
     private AppOpsManager mAppOpsManager;
 
+    private static final String REVOKE_URI_PERMISSION_CALL = "revoke_uri_permission";
+    private static final String EXTRA_OLD_PATH = "old_path";
+
     /**
      * Creates and updated database on demand when opening it.
      * Helper class to create database the first time the provider is
@@ -693,6 +696,27 @@ public final class DownloadProvider extends ContentProvider {
                 } else if (!file.mkdirs()) {
                     throw new IllegalStateException("Unable to create directory: " +
                             file.getAbsolutePath());
+                }
+                return null;
+            }
+            case REVOKE_URI_PERMISSION_CALL: {
+                getContext().enforceCallingOrSelfPermission(
+                        android.Manifest.permission.WRITE_MEDIA_STORAGE, Constants.TAG);
+
+                if (extras == null) {
+                    throw new IllegalArgumentException("extras cannot be null");
+                }
+
+                final String oldPath = extras.getString(EXTRA_OLD_PATH);
+                if (oldPath == null) {
+                    throw new IllegalArgumentException("old path cannot be null");
+                }
+
+                final long token = Binder.clearCallingIdentity();
+                try {
+                    DownloadStorageProvider.revokeDocumentByPath(getContext(), oldPath);
+                } finally {
+                    Binder.restoreCallingIdentity(token);
                 }
                 return null;
             }
