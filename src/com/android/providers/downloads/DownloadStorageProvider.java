@@ -142,6 +142,14 @@ public class DownloadStorageProvider extends FileSystemProvider {
         }
     }
 
+    static void revokeDocumentByPath(Context context, String oldPath) {
+        final String docId = RawDocumentsHelper.getDocIdForFile(new File(oldPath));
+        final Uri uri = DocumentsContract.buildDocumentUri(AUTHORITY, docId);
+        final Uri treeUri = DocumentsContract.buildTreeDocumentUri(AUTHORITY, docId);
+        context.revokeUriPermission(uri, ~0);
+        context.revokeUriPermission(treeUri, ~0);
+    }
+
     static void revokeAllMediaStoreUriPermissions(Context context) {
         final List<UriPermission> uriPermissions =
                 context.getContentResolver().getOutgoingUriPermissions();
