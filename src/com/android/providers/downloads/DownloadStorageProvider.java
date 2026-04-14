@@ -33,6 +33,8 @@ import android.content.UriPermission;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.database.MatrixCursor.RowBuilder;
+import android.icu.lang.UCharacter;
+import android.icu.lang.UProperty;
 import android.media.MediaFile;
 import android.net.Uri;
 import android.os.Binder;
@@ -61,6 +63,8 @@ import libcore.io.IoUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.text.Normalizer;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,6 +73,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Presents files located in {@link Environment#DIRECTORY_DOWNLOADS} and contents from
@@ -96,6 +101,9 @@ public class DownloadStorageProvider extends FileSystemProvider {
     };
 
     private DownloadManager mDm;
+    private static final Pattern RESTRICTED_PATH_PATTERN = Pattern.compile(
+            "^/storage/(?:emulated/[0-9]+|[^/]+)/Android/(?:data|obb|sandbox)(?:/.*)?$",
+            Pattern.CASE_INSENSITIVE);
 
     private static final int NO_LIMIT = -1;
 
@@ -478,6 +486,120 @@ public class DownloadStorageProvider extends FileSystemProvider {
         return result;
     }
 
+    /**
+     * Mark {@code Android/data/}, {@code Android/obb/} and {@code Android/sandbox/} on the
+     * integrated shared ("external") storage along with all their content and subdirectories as
+     * hidden.
+     */
+    @Override
+    protected boolean shouldHideDocument(@NonNull String documentId) {
+        if (RawDocumentsHelper.isRawDocId(documentId)) {
+            try {
+                File requestedFile = new File(RawDocumentsHelper.getAbsoluteFilePath(documentId));
+                File canonicalFile = requestedFile.getCanonicalFile();
+                return isRestrictedPath(canonicalFile);
+            } catch (Exception e) {
+                Log.w(TAG, "shouldHideDocument Failed to resolve canonical path for " + documentId,
+                        e);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check that the directory is the root of storage or blocked file from tree.
+     * <p>
+     * Note, that this is different from hidden documents: blocked documents <b>WILL</b> appear
+     * the UI, but the user <b>WILL NOT</b> be able to select them.
+     *
+     * @param documentId the docId of the directory to be checked
+     * @return true, should be blocked from tree. Otherwise, false.
+     *
+     * @see Document#FLAG_DIR_BLOCKS_OPEN_DOCUMENT_TREE
+     */
+    @Override
+    protected boolean shouldBlockDirectoryFromTree(@NonNull String documentId)
+            throws FileNotFoundException {
+        if (RawDocumentsHelper.isRawDocId(documentId)) {
+            final File dir;
+            try {
+                dir = getFileForDocId(documentId, false);
+            } catch (FileNotFoundException e) {
+                return true;
+            }
+
+            if (dir == null || !dir.isDirectory()) {
+                return false;
+            }
+
+            try {
+                File canonicalDir = dir.getCanonicalFile();
+                File externalStorageDir = Environment.getExternalStorageDirectory()
+                        .getCanonicalFile();
+
+                // Block the root of the storage
+                if (canonicalDir.equals(externalStorageDir)) {
+                    return true;
+                }
+
+                File downloadDir = new File(externalStorageDir, Environment.DIRECTORY_DOWNLOADS);
+                File androidDir = new File(externalStorageDir, Environment.DIR_ANDROID);
+
+                if (canonicalDir.equals(downloadDir) || canonicalDir.equals(androidDir)) {
+                    return true;
+                }
+            } catch (IOException e) {
+                Log.w(TAG, "Failed to resolve canonical path for " + documentId, e);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if the canonical file resides inside restricted Android directories.
+     */
+    private boolean isRestrictedPath(File canonicalFile) {
+        try {
+            String targetPath = canonicalFile.getAbsolutePath();
+            final String normalizedPath = normalizeAndFilterDefaultIgnorableCodepoints(targetPath);
+
+            return RESTRICTED_PATH_PATTERN.matcher(normalizedPath).matches();
+        } catch (Exception e) {
+            Log.w(TAG, "Error checking restricted paths", e);
+            return true;
+        }
+    }
+
+    static String normalizeAndFilterDefaultIgnorableCodepoints(String path) {
+        if (path == null || path.isEmpty()) {
+            return path;
+        }
+
+        path = Normalizer.normalize(path, Normalizer.Form.NFD);
+        final int[] codePoints = path.codePoints().toArray();
+
+        boolean hasIgnorableCodepoints = false;
+        for (int codePoint : codePoints) {
+            if (UCharacter.hasBinaryProperty(codePoint, UProperty.DEFAULT_IGNORABLE_CODE_POINT)) {
+                hasIgnorableCodepoints = true;
+                break;
+            }
+        }
+        if (!hasIgnorableCodepoints) {
+            return path;
+        }
+
+        StringBuilder normalizedPath = new StringBuilder(codePoints.length);
+        for (int codePoint : codePoints) {
+            if (!UCharacter.hasBinaryProperty(codePoint, UProperty.DEFAULT_IGNORABLE_CODE_POINT)) {
+                normalizedPath.appendCodePoint(codePoint);
+            }
+        }
+        return normalizedPath.toString();
+    }
+
     private void includeSearchFilesFromSharedStorage(DownloadsCursor result, String[] projection,
             Set<String> filePaths, Bundle queryArgs) throws FileNotFoundException {
         final File downloadDir = getPublicDownloadsDirectory();
@@ -552,7 +674,17 @@ public class DownloadStorageProvider extends FileSystemProvider {
     @Override
     protected File getFileForDocId(String docId, boolean visible) throws FileNotFoundException {
         if (RawDocumentsHelper.isRawDocId(docId)) {
-            return new File(RawDocumentsHelper.getAbsoluteFilePath(docId));
+            File requestedFile = new File(RawDocumentsHelper.getAbsoluteFilePath(docId));
+            try {
+                File canonicalFile = requestedFile.getCanonicalFile();
+                if (isRestrictedPath(canonicalFile)) {
+                    throw new FileNotFoundException("Path traversal attempt detected in docId: "
+                            + docId);
+                }
+                return requestedFile;
+            } catch (IOException e) {
+                throw new FileNotFoundException("Failed to resolve canonical path for " + docId);
+            }
         }
 
         if (isMediaStoreDownload(docId)) {
