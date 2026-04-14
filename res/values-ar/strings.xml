@@ -38,7 +38,7 @@
     <string name="wifi_required_title" msgid="7266700488421122218">"حجم التنزيل كبير جدًا بالنسبة إلى مشغّل الشبكة"</string>
     <string name="wifi_required_body" msgid="4005023496578941958">"‏يجب استخدام Wi-Fi لإكمال هذا التنزيل البالغ حجمه <xliff:g id="SIZE">%1$s </xliff:g> . \n\nالمس <xliff:g id="QUEUE_TEXT">%2$s </xliff:g> لبدء هذا التنزيل في المرة القادمة التي تتصلي فيها بشبكة Wi-Fi."</string>
     <string name="wifi_recommended_title" msgid="6488158053932133804">"هل تريد وضعه في قائمة الانتظار للتنزيل لاحقًا؟"</string>
-    <string name="wifi_recommended_body" msgid="8710820743211704403">"‏قد يؤدي بدء هذا التنزيل البالغ حجمه <xliff:g id="SIZE">%1$s </xliff:g> الآن إلى إنقاص عمر البطارية و/أو ينتج عنه استخدام زائد لاتصال بيانات الجوال، وهو ما يمكنه أن يؤدي إلى تحصيل مشغّل شبكة الجوال بعض الرسوم بناء على خطة البيانات الخاصة بك.\n\n المس <xliff:g id="QUEUE_TEXT">%2$s</xliff:g> لبدء هذا التنزيل في المرة القادمة التي تتصل فيها بشبكة Wi-Fi."</string>
+    <string name="wifi_recommended_body" msgid="8710820743211704403">"‏قد يؤدي بدء هذا التنزيل (<xliff:g id="SIZE">%1$s </xliff:g>) إلى تقليل عمر البطارية أو استهلاك زائد لاتصال بيانات الجوال، ما قد يفرض رسومًا بناء على خطة بياناتك.\n\n المس <xliff:g id="QUEUE_TEXT">%2$s</xliff:g> لبدء التنزيل عند الاتصال بشبكة Wi-Fi."</string>
     <string name="button_queue_for_wifi" msgid="6650185573566994738">"قائمة انتظار"</string>
     <string name="button_cancel_download" msgid="4135046775536601831">"إلغاء"</string>
     <string name="button_start_now" msgid="3817100969365441730">"البدء الآن"</string>
