@@ -635,16 +635,38 @@ public class Helpers {
      * directories that are always writable to apps, regardless of storage
      * permission.
      */
-    static boolean isFilenameValidInExternalPackage(File file, String packageName) {
-        try {
-            if (containsCanonical(buildExternalStorageAppDataDirs(packageName), file) ||
-                    containsCanonical(buildExternalStorageAppObbDirs(packageName), file) ||
-                    containsCanonical(buildExternalStorageAppMediaDirs(packageName), file)) {
-                return true;
+    static boolean isFilenameValidInExternalPackage(
+            Context context, File file, String packageName, int uid) {
+        if (packageName != null) {
+            try {
+                if (containsCanonical(buildExternalStorageAppDataDirs(packageName), file) ||
+                        containsCanonical(buildExternalStorageAppObbDirs(packageName), file) ||
+                        containsCanonical(buildExternalStorageAppMediaDirs(packageName), file)) {
+                    return true;
+                }
+            } catch (IOException e) {
+                Log.w(TAG, "Failed to resolve canonical path: " + file.getAbsolutePath(), e);
             }
-        } catch (IOException e) {
-            Log.w(TAG, "Failed to resolve canonical path: " + file.getAbsolutePath(), e);
-            return false;
+        }
+
+        final PackageManager pm = context.getPackageManager();
+        if (pm != null) {
+            final String[] packages = pm.getPackagesForUid(uid);
+            if (packages != null) {
+                for (String pkg : packages) {
+                    if (pkg.equals(packageName)) continue;
+                    try {
+                        if (containsCanonical(buildExternalStorageAppDataDirs(pkg), file) ||
+                                containsCanonical(buildExternalStorageAppObbDirs(pkg), file) ||
+                                containsCanonical(buildExternalStorageAppMediaDirs(pkg), file)) {
+                            return true;
+                        }
+                    } catch (IOException e) {
+                        Log.w(TAG, "Failed to resolve canonical path: "
+                                + file.getAbsolutePath(), e);
+                    }
+                }
+            }
         }
 
         return false;
@@ -691,7 +713,8 @@ public class Helpers {
             boolean isLegacyMode, boolean allowDownloadsDirOnly) {
         boolean isFileNameValid = allowDownloadsDirOnly ? isFilenameValidInPublicDownloadsDir(file)
                 : isFilenameValidInKnownPublicDir(file.getAbsolutePath());
-        if (isFilenameValidInExternalPackage(file, callingPackage) || isFileNameValid) {
+        if (isFilenameValidInExternalPackage(
+                context, file, callingPackage, Binder.getCallingUid()) || isFileNameValid) {
             // No permissions required for paths belonging to calling package or
             // public downloads dir.
             return;
