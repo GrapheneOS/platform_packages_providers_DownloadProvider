@@ -1145,43 +1145,72 @@ public final class DownloadProvider extends ContentProvider {
                 mAppOpsManager, getCallingAttributionTag(), isLegacyMode,
                 /* allowDownloadsDirOnly */ true);
         // check whether record already exists in MP or getCallingPackage owns this file
-        checkWhetherCallingAppHasAccess(file.getPath(), Binder.getCallingUid());
+        // Skip check if it is in app-specific directory (caller inherently owns it)
+        if (!Helpers.isFilenameValidInExternalPackage(
+                getContext(), file, getCallingPackage(), Binder.getCallingUid())) {
+            checkWhetherCallingAppHasAccess(file.getPath(), Binder.getCallingUid(), isLegacyMode);
+        }
     }
 
-    private void checkWhetherCallingAppHasAccess(String filePath, int uid) {
-        try (ContentProviderClient client = getContext().getContentResolver()
+    private void checkWhetherCallingAppHasAccess(String filePath, int uid, boolean isLegacyMode) {
+        // 1. Quick check: If caller has broad storage permissions, allow immediately
+        if (hasStoragePermissions(uid, isLegacyMode)) {
+            return;
+        }
+
+        // 2. Otherwise, fall back to checking ownership in MediaStore
+        boolean fileInMediaStore = false;
+        String fetchedOwnerPackageName = null;
+
+        try {
+            MediaStore.scanFile(getContext().getContentResolver(), new File(filePath));
+            try (ContentProviderClient client = getContext().getContentResolver()
                 .acquireContentProviderClient(MediaStore.AUTHORITY)) {
-            if (client == null) {
-                Log.w(Constants.TAG, "Failed to acquire ContentProviderClient for MediaStore");
-                return;
-            }
-
-            Uri filesUri = MediaStore.setIncludePending(
-                    Helpers.getContentUriForPath(getContext(), filePath));
-
-            try (Cursor cursor = client.query(filesUri,
-                    new String[]{MediaStore.Files.FileColumns._ID,
-                            MediaStore.Files.FileColumns.OWNER_PACKAGE_NAME},
-                    MediaStore.Files.FileColumns.DATA + "=?", new String[]{filePath},
-                    null)) {
-                if (cursor != null && cursor.moveToFirst()) {
-                    String fetchedOwnerPackageName = cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    MediaStore.Files.FileColumns.OWNER_PACKAGE_NAME));
-                    String[] packageNames = getContext().getPackageManager().getPackagesForUid(uid);
-
-                    if (fetchedOwnerPackageName != null && packageNames != null) {
-                        boolean isCallerAuthorized = Arrays.asList(packageNames)
-                                .contains(fetchedOwnerPackageName);
-                        if (!isCallerAuthorized) {
-                            throw new SecurityException("Caller does not have access to this path");
+                if (client != null) {
+                    Uri filesUri = MediaStore.setIncludePending(
+                            Helpers.getContentUriForPath(getContext(), filePath));
+                    try (Cursor cursor = client.query(filesUri,
+                            new String[]{MediaStore.Files.FileColumns._ID,
+                                    MediaStore.Files.FileColumns.OWNER_PACKAGE_NAME},
+                            MediaStore.Files.FileColumns.DATA + "=?", new String[]{filePath},
+                            null)) {
+                        if (cursor != null && cursor.moveToFirst()) {
+                            fileInMediaStore = true;
+                            fetchedOwnerPackageName = cursor.getString(
+                                    cursor.getColumnIndexOrThrow(
+                                            MediaStore.Files.FileColumns.OWNER_PACKAGE_NAME));
                         }
                     }
                 }
             }
-        } catch (RemoteException e) {
+        } catch (Exception e) {
             Log.w(Constants.TAG, "Failed to query MediaStore: " + e.getMessage());
         }
+
+        // 3. Allow if caller is the owner
+        if (fileInMediaStore && fetchedOwnerPackageName != null) {
+            String[] packageNames = getContext().getPackageManager().getPackagesForUid(uid);
+            if (packageNames != null &&
+                    Arrays.asList(packageNames).contains(fetchedOwnerPackageName)) {
+                return;
+            }
+        }
+
+        // 4. Reject if caller is not owner and lacks broad permissions
+        throw new SecurityException("Caller does not have access to this path: " + filePath);
+    }
+
+    private boolean hasStoragePermissions(int uid, boolean isLegacyMode) {
+        if (getContext().checkPermission(android.Manifest.permission.MANAGE_EXTERNAL_STORAGE,
+                Binder.getCallingPid(), uid) == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+        if (isLegacyMode &&
+                getContext().checkPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Binder.getCallingPid(), uid) == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+        return false;
     }
 
 
@@ -1205,56 +1234,56 @@ public final class DownloadProvider extends ContentProvider {
 
         // ensure the request fits within the bounds of a public API request
         // first copy so we can remove values
-        values = new ContentValues(values);
+        ContentValues check = new ContentValues(values);
 
         // check columns whose values are restricted
-        enforceAllowedValues(values, Downloads.Impl.COLUMN_IS_PUBLIC_API, Boolean.TRUE);
+        enforceAllowedValues(check, Downloads.Impl.COLUMN_IS_PUBLIC_API, Boolean.TRUE);
 
         // validate the destination column
-        if (values.getAsInteger(Downloads.Impl.COLUMN_DESTINATION) ==
+        if (check.getAsInteger(Downloads.Impl.COLUMN_DESTINATION) ==
                 Downloads.Impl.DESTINATION_NON_DOWNLOADMANAGER_DOWNLOAD) {
             /* this row is inserted by
              * DownloadManager.addCompletedDownload(String, String, String,
              * boolean, String, String, long)
              */
-            values.remove(Downloads.Impl.COLUMN_TOTAL_BYTES);
-            values.remove(Downloads.Impl._DATA);
-            values.remove(Downloads.Impl.COLUMN_STATUS);
+            check.remove(Downloads.Impl.COLUMN_TOTAL_BYTES);
+            check.remove(Downloads.Impl._DATA);
+            check.remove(Downloads.Impl.COLUMN_STATUS);
         }
-        enforceAllowedValues(values, Downloads.Impl.COLUMN_DESTINATION,
+        enforceAllowedValues(check, Downloads.Impl.COLUMN_DESTINATION,
                 Downloads.Impl.DESTINATION_CACHE_PARTITION_PURGEABLE,
                 Downloads.Impl.DESTINATION_FILE_URI,
                 Downloads.Impl.DESTINATION_NON_DOWNLOADMANAGER_DOWNLOAD);
 
         if (getContext().checkCallingOrSelfPermission(Downloads.Impl.PERMISSION_NO_NOTIFICATION)
                 == PackageManager.PERMISSION_GRANTED) {
-            enforceAllowedValues(values, Downloads.Impl.COLUMN_VISIBILITY,
+            enforceAllowedValues(check, Downloads.Impl.COLUMN_VISIBILITY,
                     Request.VISIBILITY_HIDDEN,
                     Request.VISIBILITY_VISIBLE,
                     Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
                     Request.VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION);
         } else {
-            enforceAllowedValues(values, Downloads.Impl.COLUMN_VISIBILITY,
+            enforceAllowedValues(check, Downloads.Impl.COLUMN_VISIBILITY,
                     Request.VISIBILITY_VISIBLE,
                     Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
                     Request.VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION);
         }
 
         // remove the rest of the columns that are allowed (with any value)
-        values.remove(Downloads.Impl.COLUMN_URI);
-        values.remove(Downloads.Impl.COLUMN_TITLE);
-        values.remove(Downloads.Impl.COLUMN_DESCRIPTION);
-        values.remove(Downloads.Impl.COLUMN_MIME_TYPE);
-        values.remove(Downloads.Impl.COLUMN_FILE_NAME_HINT); // checked later in insert()
-        values.remove(Downloads.Impl.COLUMN_NOTIFICATION_PACKAGE); // checked later in insert()
-        values.remove(Downloads.Impl.COLUMN_ALLOWED_NETWORK_TYPES);
-        values.remove(Downloads.Impl.COLUMN_ALLOW_ROAMING);
-        values.remove(Downloads.Impl.COLUMN_ALLOW_METERED);
-        values.remove(Downloads.Impl.COLUMN_FLAGS);
-        values.remove(Downloads.Impl.COLUMN_IS_VISIBLE_IN_DOWNLOADS_UI);
-        values.remove(Downloads.Impl.COLUMN_MEDIA_SCANNED);
-        values.remove(Downloads.Impl.COLUMN_ALLOW_WRITE);
-        Iterator<Map.Entry<String, Object>> iterator = values.valueSet().iterator();
+        check.remove(Downloads.Impl.COLUMN_URI);
+        check.remove(Downloads.Impl.COLUMN_TITLE);
+        check.remove(Downloads.Impl.COLUMN_DESCRIPTION);
+        check.remove(Downloads.Impl.COLUMN_MIME_TYPE);
+        check.remove(Downloads.Impl.COLUMN_FILE_NAME_HINT); // checked later in insert()
+        check.remove(Downloads.Impl.COLUMN_NOTIFICATION_PACKAGE); // checked later in insert()
+        check.remove(Downloads.Impl.COLUMN_ALLOWED_NETWORK_TYPES);
+        check.remove(Downloads.Impl.COLUMN_ALLOW_ROAMING);
+        check.remove(Downloads.Impl.COLUMN_ALLOW_METERED);
+        check.remove(Downloads.Impl.COLUMN_FLAGS);
+        check.remove(Downloads.Impl.COLUMN_IS_VISIBLE_IN_DOWNLOADS_UI);
+        check.remove(Downloads.Impl.COLUMN_MEDIA_SCANNED);
+        check.remove(Downloads.Impl.COLUMN_ALLOW_WRITE);
+        Iterator<Map.Entry<String, Object>> iterator = check.valueSet().iterator();
         while (iterator.hasNext()) {
             String key = iterator.next().getKey();
             if (key.startsWith(Downloads.Impl.RequestHeaders.INSERT_KEY_PREFIX)) {
@@ -1263,10 +1292,10 @@ public final class DownloadProvider extends ContentProvider {
         }
 
         // any extra columns are extraneous and disallowed
-        if (values.size() > 0) {
+        if (check.size() > 0) {
             StringBuilder error = new StringBuilder("Invalid columns in request: ");
             boolean first = true;
-            for (Map.Entry<String, Object> entry : values.valueSet()) {
+            for (Map.Entry<String, Object> entry : check.valueSet()) {
                 if (!first) {
                     error.append(", ");
                 }
@@ -1926,7 +1955,7 @@ public final class DownloadProvider extends ContentProvider {
                 } else {
                     String filename = cursor.getString(0);
                     Log.v(Constants.TAG, "filename in openFile: " + filename);
-                    if (new java.io.File(filename).isFile()) {
+                    if (filename != null && new java.io.File(filename).isFile()) {
                         Log.v(Constants.TAG, "file exists in openFile");
                     }
                 }
