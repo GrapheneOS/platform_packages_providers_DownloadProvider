@@ -646,6 +646,12 @@ public class HelpersTest extends AndroidTestCase {
         assertTrue(isFileInPrivateExternalAndroidDirs(
                 "/storage/AAAA-FFFF/Android/obb/com.example/file.mp4"));
 
+        // Test ZWSP bypass
+        assertTrue(isFileInPrivateExternalAndroidDirs(
+                "/storage/emulated/0/An\u200bdroid/data/com.example/colors.txt"));
+        assertTrue(isFileInPrivateExternalAndroidDirs(
+                "/storage/emulated/0/Android/da\u200bta/com.example/colors.txt"));
+
         assertFalse(isFileInPrivateExternalAndroidDirs("/storage/emulated/0/Android/"));
         assertFalse(isFileInPrivateExternalAndroidDirs("/storage/AAAA-FFFF/Android/"));
         assertFalse(isFileInPrivateExternalAndroidDirs(
@@ -660,6 +666,15 @@ public class HelpersTest extends AndroidTestCase {
 
     private static boolean isFileInPrivateExternalAndroidDirs(String filePath) {
         return Helpers.isFileInPrivateExternalAndroidDirs(new File(filePath));
+    }
+
+    public void testIsFileInExternalAndroidDirs_zwspBypass() throws Exception {
+        assertTrue(Helpers.isFileInExternalAndroidDirs(
+                "/storage/emulated/0/An\u200bdroid/data/com.example/colors.txt"));
+        assertTrue(Helpers.isFileInExternalAndroidDirs(
+                "/storage/emulated/0/Android/da\u200bta/com.example/colors.txt"));
+        assertTrue(Helpers.isFileInExternalAndroidDirs(
+                "/storage/emulated/0/Android/me\u200bdia/com.example/colors.txt"));
     }
 
     public void testIsFilenameValidinKnownPublicDir() throws Exception {
