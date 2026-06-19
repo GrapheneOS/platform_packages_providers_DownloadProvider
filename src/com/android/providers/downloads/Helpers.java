@@ -60,6 +60,8 @@ import android.os.storage.StorageVolume;
 import android.provider.Downloads;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.icu.lang.UCharacter;
+import android.icu.lang.UProperty;
 import android.util.Log;
 import android.util.SparseArray;
 import android.webkit.MimeTypeMap;
@@ -70,6 +72,7 @@ import com.android.providers.downloads.flags.Flags;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
@@ -576,7 +579,47 @@ public class Helpers {
     }
 
     public static boolean isFileInExternalAndroidDirs(String filePath) {
-        return PATTERN_ANDROID_DIRS.matcher(filePath).matches();
+        return PATTERN_ANDROID_DIRS.matcher(filePath).matches()
+                || PATTERN_ANDROID_DIRS.matcher(
+                        normalizeAndFilterDefaultIgnorableCodepoints(filePath)).matches();
+    }
+
+    /**
+     * Normalizes the given path to NFD form and removes all default ignorable Unicode characters.
+     * These include characters (e.g., invisible zero-width spaces) that are ignored by the lower
+     * file system, but can be exploited by malicious apps to bypass path-based regex checks.
+     *
+     * @param path the input file path, possibly containing invisible Unicode characters
+     * @return a normalized path string with ignorable characters removed
+     */
+    private static String normalizeAndFilterDefaultIgnorableCodepoints(String path) {
+        if (path == null || path.isEmpty()) {
+            return path;
+        }
+
+        path = Normalizer.normalize(path, Normalizer.Form.NFD);
+        final int[] codePoints = path.codePoints().toArray();
+
+        boolean hasIgnorableCodepoints = false;
+        for (int codePoint : codePoints) {
+            if (UCharacter.hasBinaryProperty(codePoint, UProperty.DEFAULT_IGNORABLE_CODE_POINT)) {
+                hasIgnorableCodepoints = true;
+                break;
+            }
+        }
+        // Input is already normalized.
+        if (!hasIgnorableCodepoints) {
+            return path;
+        }
+
+        // Remove default ignorable code points.
+        StringBuilder normalizedPath = new StringBuilder(codePoints.length);
+        for (int codePoint : codePoints) {
+            if (!UCharacter.hasBinaryProperty(codePoint, UProperty.DEFAULT_IGNORABLE_CODE_POINT)) {
+                normalizedPath.appendCodePoint(codePoint);
+            }
+        }
+        return normalizedPath.toString();
     }
 
     static boolean isFilenameValid(Context context, File file) {
@@ -626,7 +669,10 @@ public class Helpers {
      */
     static boolean isFileInPrivateExternalAndroidDirs(File file) {
         try {
-            return PATTERN_ANDROID_PRIVATE_DIRS.matcher(file.getCanonicalPath()).matches();
+            final String canonicalPath = file.getCanonicalPath();
+            return PATTERN_ANDROID_PRIVATE_DIRS.matcher(canonicalPath).matches()
+                    || PATTERN_ANDROID_PRIVATE_DIRS.matcher(
+                            normalizeAndFilterDefaultIgnorableCodepoints(canonicalPath)).matches();
         } catch (IOException e) {
             Log.w(TAG, "Failed to resolve canonical path: " + file.getAbsolutePath(), e);
         }
