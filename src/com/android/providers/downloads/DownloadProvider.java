@@ -1276,6 +1276,14 @@ public final class DownloadProvider extends ContentProvider {
         check.remove(Downloads.Impl.COLUMN_MIME_TYPE);
         check.remove(Downloads.Impl.COLUMN_FILE_NAME_HINT); // checked later in insert()
         check.remove(Downloads.Impl.COLUMN_NOTIFICATION_PACKAGE); // checked later in insert()
+        // GmsCompat: Play Store uses COLUMN_NOTIFICATION_CLASS as selectionArg
+        // in ContentResolver#query() during self-update.
+        // Allowing this column is harmless
+        // (used only for Intent.setClassName(packageName, className)) and
+        // it doesn't even get used anyway, because DownloadProvider always checks whether
+        // COLUMN_IS_PUBLIC_API is "false" (it is enforced to be "true" above) before
+        // using COLUMN_NOTIFICATION_CLASS
+        check.remove(Downloads.Impl.COLUMN_NOTIFICATION_CLASS);
         check.remove(Downloads.Impl.COLUMN_ALLOWED_NETWORK_TYPES);
         check.remove(Downloads.Impl.COLUMN_ALLOW_ROAMING);
         check.remove(Downloads.Impl.COLUMN_ALLOW_METERED);
